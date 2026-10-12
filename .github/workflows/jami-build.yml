@@ -7,6 +7,10 @@ name: jami-mod-build
 on:
   workflow_dispatch:
   push:
+    branches: [main]
+    # 更新 Clash 订阅文件不触发构建（工作流文件本身的改动仍会触发）
+    paths-ignore:
+      - "subscription/**"
 
 jobs:
   build:

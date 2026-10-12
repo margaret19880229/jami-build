@@ -1,0 +1,58 @@
+# =============================================================
+# WeAdd Clash 订阅 — 东京自建节点（VLESS + Reality）
+# 服务器: 131.186.38.96:443 (Oracle ap-tokyo-1, 与 jami 服务器同机)
+# 协议: XTLS/Xray-core v26.3.27, VLESS + Reality + xtls-rprx-vision
+# 生成: 2026-10-12
+# 用法: Clash Verge → 配置 → 添加 → 远程 → 粘贴本文件 URL
+#   https://raw.githubusercontent.com/margaret19880229/jami-build/main/subscription/clash.yaml
+# =============================================================
+mixed-port: 7890
+allow-lan: false
+mode: rule
+log-level: info
+external-controller: 127.0.0.1:9090
+
+dns:
+  enable: true
+  listen: 0.0.0.0:1053
+  enhanced-mode: fake-ip
+  fake-ip-range: 198.18.0.2/16
+  fake-ip-filter:
+    - "*.lan"
+    - "localhost.ptlocal"
+  nameserver:
+    - 223.5.5.5
+    - 119.29.29.29
+  fallback:
+    - tls://1.1.1.1
+    - tls://8.8.8.8
+  fallback-filter:
+    geoip: true
+
+proxies:
+  - name: "Tokyo-WeAdd"
+    type: vless
+    server: 131.186.38.96
+    port: 443
+    uuid: 3d8b2e8f-c9c8-4e20-91d1-ffe35802c957
+    flow: xtls-rprx-vision
+    network: tcp
+    udp: true
+    tls: true
+    servername: www.microsoft.com
+    fingerprint: chrome
+    reality-opts:
+      public-key: 9p4JZC8jSE3gNxTTZoxTGWaWCrpytVZ6loi4SU-GpR4
+      short-id: ""
+
+proxy-groups:
+  - name: "PROXY"
+    type: select
+    proxies:
+      - "Tokyo-WeAdd"
+      - DIRECT
+
+rules:
+  - GEOIP,LAN,DIRECT
+  - GEOIP,CN,DIRECT
+  - MATCH,PROXY

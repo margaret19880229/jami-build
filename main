@@ -1,0 +1,104 @@
+# WeAdd jami-daemon moderator 镜像构建（单文件版：GH 云端 amd64 构建 → 推送 GHCR）
+name: jami-mod-build
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch jami-daemon source
+        uses: actions/checkout@v4
+        with:
+          repository: savoirfairelinux/jami-daemon
+          ref: master
+          path: daemon
+
+      - name: Write build files
+        run: |
+          cat > daemon/Dockerfile.moderator <<'EOF'
+          # Jami DHT moderator 节点镜像
+          FROM ubuntu:24.04
+
+          ARG DEBIAN_FRONTEND=noninteractive
+          RUN apt-get update && apt-get install -y \
+              autoconf automake autopoint bison build-essential cmake meson curl git \
+              libarchive-dev libasio-dev libasound2-dev libdbus-1-dev libexpat1-dev \
+              libgmp-dev nettle-dev libgnutls28-dev libjsoncpp-dev libmsgpack-dev \
+              libnatpmp-dev libopus-dev libpipewire-0.3-dev libpulse-dev libspeex-dev \
+              libspeexdsp-dev libssl-dev libsystemd-dev libtool libudev-dev libupnp-dev \
+              libva-dev libvdpau-dev libvpx-dev libx264-dev libyaml-cpp-dev \
+              libargon2-dev libwebrtc-audio-processing-dev libsecp256k1-dev \
+              guile-3.0-dev nasm pkg-config yasm libcppunit-dev ninja-build sip-tester cargo \
+              dbus ca-certificates
+
+          WORKDIR /daemon
+          COPY . .
+
+          # 构建 daemon（与官方 Dockerfile 相同的 cmake/ninja 管线）
+          RUN mkdir -p build && cd build && \
+              cmake .. -GNinja -DJAMI_DBUS=ON && \
+              ninja -j$(( $(nproc) > 4 ? 4 : $(nproc) ))
+
+          # 运行期准备：非 root 用户 + 状态目录
+          RUN useradd -m -u 1000 -s /bin/sh jami && \
+              mkdir -p /home/jami/.local/share/jami /home/jami/.dbus && \
+              chown -R 1000:1000 /home/jami
+
+          COPY moderator-entrypoint.sh /opt/moderator-entrypoint.sh
+          RUN chmod +x /opt/moderator-entrypoint.sh
+
+          USER 1000:1000
+          ENV HOME=/home/jami
+          ENTRYPOINT ["/opt/moderator-entrypoint.sh"]
+          EOF
+          cat > daemon/moderator-entrypoint.sh <<'EOF'
+          #!/bin/sh
+          # Jami moderator 启动脚本：自起 session D-Bus，然后 exec jamid
+          set -e
+
+          mkdir -p /home/jami/.dbus
+          rm -f /home/jami/.dbus/addr
+
+          dbus-daemon --session \
+            --address=unix:path=/home/jami/.dbus/jami.sock \
+            --print-address > /home/jami/.dbus/addr &
+          BUS_PID=$!
+
+          i=0
+          while [ $i -lt 50 ]; do
+            [ -S /home/jami/.dbus/jami.sock ] && break
+            sleep 0.1
+            i=$((i + 1))
+          done
+
+          export DBUS_SESSION_BUS_ADDRESS=$(cat /home/jami/.dbus/addr)
+          echo "session bus: $DBUS_SESSION_BUS_ADDRESS"
+
+          trap 'kill $BUS_PID 2>/dev/null || true' TERM INT
+
+          exec jamid
+          EOF
+          chmod +x daemon/moderator-entrypoint.sh
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build & push (amd64)
+        uses: docker/build-push-action@v6
+        with:
+          context: ./daemon
+          file: daemon/Dockerfile.moderator
+          platforms: linux/amd64
+          push: true
+          tags: ghcr.io/${{ github.repository }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -12,6 +12,12 @@ on:
     paths-ignore:
       - "subscription/**"
 
+# GITHUB_TOKEN 的 packages 权限默认是 read，显式给 write 才能推 GHCR
+# （否则 push 时报 "denied: installation not allowed to Create organization package"）
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -136,3 +142,4 @@ jobs:
         run: |
           docker tag jami-daemon-mod:latest ghcr.io/${{ github.repository }}:latest
           docker push ghcr.io/${{ github.repository }}:latest
+

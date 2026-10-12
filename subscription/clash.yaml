@@ -39,7 +39,7 @@ proxies:
     network: tcp
     udp: true
     tls: true
-    servername: www.microsoft.com
+    servername: www.cloudflare.com
     fingerprint: chrome
     reality-opts:
       public-key: 9p4JZC8jSE3gNxTTZoxTGWaWCrpytVZ6loi4SU-GpR4
@@ -56,3 +56,4 @@ rules:
   - GEOIP,LAN,DIRECT
   - GEOIP,CN,DIRECT
   - MATCH,PROXY
+

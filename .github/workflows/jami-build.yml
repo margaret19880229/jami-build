@@ -64,7 +64,15 @@ jobs:
               ninja -j$(( $(nproc) > 4 ? 4 : $(nproc) ))
 
           # 运行期准备：非 root 用户 + 状态目录
-          RUN useradd -m -u 1000 -s /bin/sh jami && \
+          # （构建过程会静默占用 uid 1000，先查再建/改名，避免 "UID 1000 is not unique"）
+          RUN set -eux; \
+              if getent passwd 1000 >/dev/null; then \
+                  oldname=$(getent passwd 1000 | cut -d: -f1); \
+                  echo "uid 1000 occupied by '$oldname' - renaming to jami"; \
+                  usermod -l jami -d /home/jami -m "$oldname"; \
+              else \
+                  useradd -m -u 1000 -s /bin/sh jami; \
+              fi; \
               mkdir -p /home/jami/.local/share/jami /home/jami/.dbus && \
               chown -R 1000:1000 /home/jami
 

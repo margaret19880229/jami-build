@@ -73,6 +73,9 @@ jobs:
               cmake .. -GNinja -DJAMI_DBUS=ON && \
               ninja -j$(( $(nproc) > 4 ? 4 : $(nproc) ))
 
+          # jamid 产物在 /daemon/build/（cmake 只 build 不 install），补进 PATH
+          ENV PATH=/daemon/build:$PATH
+
           # 运行期准备：非 root 用户 + 状态目录
           # （构建过程会静默占用 uid 1000，先查再建/改名，避免 "UID 1000 is not unique"）
           RUN set -eux; \

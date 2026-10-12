@@ -1,7 +1,7 @@
 # =============================================================
 # WeAdd Clash 订阅 — 东京自建节点（VLESS + Reality）
 # 服务器: 131.186.38.96:443 (Oracle ap-tokyo-1, 与 jami 服务器同机)
-# 协议: XTLS/Xray-core v26.3.27, VLESS + Reality + xtls-rprx-vision
+# 协议: mihomo v1.19.32（Clash Verge Rev 同款核心）, VLESS + Reality + xtls-rprx-vision
 # 生成: 2026-10-12
 # 用法: Clash Verge → 配置 → 添加 → 远程 → 粘贴本文件 URL
 #   https://raw.githubusercontent.com/margaret19880229/jami-build/main/subscription/clash.yaml
@@ -40,7 +40,7 @@ proxies:
     udp: true
     tls: true
     servername: www.cloudflare.com
-    fingerprint: chrome
+    client-fingerprint: chrome
     reality-opts:
       public-key: 9p4JZC8jSE3gNxTTZoxTGWaWCrpytVZ6loi4SU-GpR4
       short-id: ""

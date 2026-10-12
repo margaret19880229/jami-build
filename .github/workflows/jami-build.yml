@@ -1,4 +1,7 @@
 # WeAdd jami-daemon moderator 镜像构建（单文件版：GH 云端 amd64 构建 → 推送 GHCR）
+# 用法：在你的任意 GitHub 仓库建文件 .github/workflows/jami-build.yml，粘贴本文件，
+#       commit 后 Actions 自动开跑（约 1.5~2.5 小时，大头是 contrib 编译）。
+# 产出：ghcr.io/<owner>/<repo>:latest（amd64）。VPS 侧 docker pull 后打 tag 即可用。
 name: jami-mod-build
 
 on:
@@ -22,6 +25,11 @@ jobs:
         run: |
           cat > daemon/Dockerfile.moderator <<'EOF'
           # Jami DHT moderator 节点镜像
+          # 构建上下文 = jami-daemon 仓库目录（官方 Dockerfile 的 apt 依赖清单 + cmake/ninja 构建）
+          # 说明：官方仓库 Dockerfile 只构建不运行；本文件在其基础上补了
+          #   1) dbus（jamid 的 D-Bus 接口需要 session bus，与 WSLC bot 的跑法一致）
+          #   2) cargo（master 新增 yffi 组件 = yrs CRDT 的 Rust FFI，官方 apt 清单缺它）
+          #   3) 非 root 用户 + 启动脚本（自起 session dbus-daemon 后 exec jamid）
           FROM ubuntu:24.04
 
           ARG DEBIAN_FRONTEND=noninteractive
@@ -59,6 +67,8 @@ jobs:
           cat > daemon/moderator-entrypoint.sh <<'EOF'
           #!/bin/sh
           # Jami moderator 启动脚本：自起 session D-Bus，然后 exec jamid
+          # 与 WSLC jami-bot 容器的跑法保持一致（jamid 需要 session bus 提供
+          # cx.ring.Ring.ConfigurationManager 接口，便于 D-Bus 配置/调试）
           set -e
 
           mkdir -p /home/jami/.dbus
@@ -69,6 +79,7 @@ jobs:
             --print-address > /home/jami/.dbus/addr &
           BUS_PID=$!
 
+          # 等待 socket 就绪
           i=0
           while [ $i -lt 50 ]; do
             [ -S /home/jami/.dbus/jami.sock ] && break
@@ -79,6 +90,7 @@ jobs:
           export DBUS_SESSION_BUS_ADDRESS=$(cat /home/jami/.dbus/addr)
           echo "session bus: $DBUS_SESSION_BUS_ADDRESS"
 
+          # trap 让容器 SIGTERM 时能带走 dbus-daemon
           trap 'kill $BUS_PID 2>/dev/null || true' TERM INT
 
           exec jamid
@@ -92,13 +104,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build & push (amd64)
-        uses: docker/build-push-action@v6
-        with:
-          context: ./daemon
-          file: daemon/Dockerfile.moderator
-          platforms: linux/amd64
-          push: true
-          tags: ghcr.io/${{ github.repository }}:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      # 注意：单架构 amd64 不需要 buildx；若用 cache-from: type=gha 必须配
+      # docker/setup-buildx-action（GHA cache 后端由它初始化），否则 buildx 报错
+      - name: Build (amd64)
+        run: docker build -f daemon/Dockerfile.moderator -t jami-daemon-mod:latest daemon/
+
+      - name: Push to GHCR
+        run: |
+          docker tag jami-daemon-mod:latest ghcr.io/${{ github.repository }}:latest
+          docker push ghcr.io/${{ github.repository }}:latest

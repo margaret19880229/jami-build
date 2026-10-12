@@ -47,6 +47,14 @@ jobs:
               guile-3.0-dev nasm pkg-config yasm libcppunit-dev ninja-build sip-tester cargo \
               dbus ca-certificates
 
+          # apt 的 cargo 1.75 解析不了 y-crdt 新 pin 的 Cargo.lock（v4 格式，
+          # 要求 >=1.78）。装 rustup stable 并替换 /usr/bin/cargo——
+          # contrib 规则里硬编码了 /usr/bin/cargo 这个绝对路径
+          RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs -o /tmp/rustup-init.sh && \
+              sh /tmp/rustup-init.sh -y --profile minimal --default-toolchain stable && \
+              ln -sf /root/.cargo/bin/cargo /usr/bin/cargo && \
+              ln -sf /root/.cargo/bin/rustc /usr/bin/rustc
+
           WORKDIR /daemon
           COPY . .
 

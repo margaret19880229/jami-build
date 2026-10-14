@@ -28,10 +28,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: savoirfairelinux/jami-daemon
-          # 钉死 VPS 本地构建用的 commit：master 的 yffi/y-crdt pin 更新后
+          # 2026-10-14 升至 master 头（DST 系列）；旧钉死: # master 的 yffi/y-crdt pin 更新后
           # Cargo.lock 变成 v4 格式，ubuntu:24.04 自带的 cargo 1.75 解析不了
           # （lock file version 4 requires -Znext-lockfile-bump）
-          ref: 91a048c83a47a48ba6c79b6dd315e0c2cbae0c97
+          ref: 8b1d96ed9a084e857748c5e58c8521d66712961b
           path: daemon
 
       - name: Write build files
